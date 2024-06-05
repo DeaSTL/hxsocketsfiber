@@ -1,58 +1,58 @@
-package main
+package hxsocketsfiber
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"sync"
-	"text/template"
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
-func main() {
-	app := fiber.New()
-
-	server := NewServer(app)
-	server.Mount("/ws")
-
-	server.Listen("some_message", func(client *Client, msg []byte) {
-		message := recvData{}
-		println(string(msg))
-		err := json.Unmarshal(msg, &message)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		buf := bytes.NewBuffer([]byte{})
-		t, err := template.New("").Parse(buttonTemplate)
-		if err != nil {
-			fmt.Println("error unmarshaling")
-		}
-		fmt.Printf("message.on is %v", message.On)
-		t.Execute(buf, !message.On)
-		fmt.Println()
-		os.Stdout.Write(buf.Bytes())
-		err = client.conn.WriteMessage(1, buf.Bytes())
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-	})
-
-	app.Static("/", "./static/", fiber.Static{})
-	log.Fatal(app.Listen(":3000"))
+type ListenerFunc func(*Client, []byte)
+type ClientConnectFunc func(*Client)
+type ClientDisconnectFunc func(*Client)
+type Server struct {
+	app                *fiber.App
+	clients            map[string]*Client
+	listeners          map[string]ListenerFunc
+	OnClientConnect    ClientConnectFunc
+	OnClientDisconnect ClientDisconnectFunc
+	mtex               sync.Mutex
 }
 
-type ListenerFunc func(*Client, []byte)
-type Server struct {
-	app       *fiber.App
-	clients   map[string]*Client
-	listeners map[string]ListenerFunc
-	mtex      sync.Mutex
+func (s *Server) GetAllClients() []*Client {
+	ret := []*Client{}
+	for _, client := range s.clients {
+		ret = append(ret, client)
+	}
+	return ret
+}
+
+func (s *Server) GetClient(id string) *Client {
+	c, ok := s.clients[id]
+	if !ok {
+		return nil
+	}
+	return c
+}
+
+func (s *Server) GetClientFilter(filter func(*Client) bool) []*Client {
+	ret := []*Client{}
+	for _, c := range s.clients {
+		if filter(c) {
+			ret = append(ret, c)
+		}
+	}
+
+	return ret
+}
+
+func (c *Client) Close() error {
+	return c.conn.Close()
 }
 
 func (s *Server) Listen(endpoint string, handler ListenerFunc) error {
@@ -135,12 +135,18 @@ type Client struct {
 	id   string
 }
 
+func (c *Client) WriteMessage(code int, msg []byte) error {
+	return c.conn.WriteMessage(code, msg)
+}
+
 func NewServer(app *fiber.App) Server {
 	return Server{
-		app:       app,
-		clients:   map[string]*Client{},
-		listeners: map[string]ListenerFunc{},
-		mtex:      sync.Mutex{},
+		app:                app,
+		clients:            map[string]*Client{},
+		listeners:          map[string]ListenerFunc{},
+		OnClientConnect:    func(*Client) {},
+		OnClientDisconnect: func(*Client) {},
+		mtex:               sync.Mutex{},
 	}
 }
 func GenB64(length int) string {
@@ -162,16 +168,3 @@ type HXWSHeaders struct {
 		HXCurrentURL  string  `json:"HX-Current-URL"`
 	} `json:"HEADERS"`
 }
-
-type recvData struct {
-	On bool `json:"state"`
-}
-
-var buttonTemplate string = `<button
-		id="some_message"
-		hx-vals='{"state": {{if .}}true{{else}}false{{end}}}'
-		hx-trigger="click"
-		ws-send
-		>
-		{{if .}}on{{else}}off{{end}}
-	</button>`

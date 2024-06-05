@@ -13,8 +13,14 @@ import (
 )
 
 type ListenerFunc func(*Client, []byte)
+
 type ClientConnectFunc func(*Client)
 type ClientDisconnectFunc func(*Client)
+
+// Server represents the ws endpoints exposed by your application
+// the developer is not responsible for closing the connection on
+// disconnection, but can optionally include extra logic by passing
+// a OnClientDisconnect function to be run when the client disconects
 type Server struct {
 	app                *fiber.App
 	clients            map[string]*Client
@@ -24,6 +30,7 @@ type Server struct {
 	mtex               sync.Mutex
 }
 
+// GetAllClients returns a slice of all connected clients
 func (s *Server) GetAllClients() []*Client {
 	ret := []*Client{}
 	for _, client := range s.clients {
@@ -32,6 +39,8 @@ func (s *Server) GetAllClients() []*Client {
 	return ret
 }
 
+// GetClient returns the client with the associated id. GetClient
+// returns nil if a client with the id is not found.
 func (s *Server) GetClient(id string) *Client {
 	c, ok := s.clients[id]
 	if !ok {
@@ -40,6 +49,9 @@ func (s *Server) GetClient(id string) *Client {
 	return c
 }
 
+// GetClientFilter accepts a filter function that takes a client and returns
+// a slice of all clients that the function returns "true" when called with
+// that client as it's argument
 func (s *Server) GetClientFilter(filter func(*Client) bool) []*Client {
 	ret := []*Client{}
 	for _, c := range s.clients {
@@ -51,10 +63,14 @@ func (s *Server) GetClientFilter(filter func(*Client) bool) []*Client {
 	return ret
 }
 
+// Close will close a client connection
 func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+// Listen will associate a ListenerFunc with a websocket endpoint.
+// This will not accomplish anything unless Mount(endpoint) is called
+// to mount the websocket paths to an endpoint
 func (s *Server) Listen(endpoint string, handler ListenerFunc) error {
 	s.mtex.Lock()
 	defer s.mtex.Unlock()
@@ -91,15 +107,28 @@ func (s *Server) Mount(endpoint string) {
 
 		newClient := Client{
 			conn: c,
-			id:   GenB64(10),
+			ID:   GenB64(10),
 		}
+		s.clients[newClient.ID] = &newClient
 
-		s.clients[newClient.id] = &newClient
+		s.OnClientConnect(&newClient)
+
+		c.SetCloseHandler(func(code int, text string) error {
+			s.OnClientDisconnect(&newClient)
+			return nil
+		})
 
 		log.Printf("client connected %+v", newClient)
 
 		for {
 			_, msg, err := c.ReadMessage()
+
+			if err != nil {
+				s.OnClientDisconnect(&newClient)
+				newClient.conn.Close()
+				break
+			}
+
 			hd := HXWSHeaders{}
 
 			err = json.Unmarshal(msg, &hd)
@@ -130,9 +159,10 @@ func (s *Server) Mount(endpoint string) {
 
 }
 
+// Client represents a connected client.
 type Client struct {
 	conn *websocket.Conn
-	id   string
+	ID   string
 }
 
 func (c *Client) WriteMessage(code int, msg []byte) error {

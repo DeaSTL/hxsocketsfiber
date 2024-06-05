@@ -1,0 +1,12 @@
+services:
+  app:
+    container_name: app
+    ports:
+      - 3000:3000
+    develop:
+      watch:
+        - path: ./
+          action: sync+restart
+          target: /app/
+    build:
+      dockerfile: ./Dockerfile

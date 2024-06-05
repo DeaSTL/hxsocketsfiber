@@ -1,0 +1,22 @@
+package views
+
+import "fmt"
+import "strconv"
+
+templ Button(state bool) {
+	<button
+		id="some_message"
+		if state {
+			class="on"
+		}
+		hx-vals={ fmt.Sprintf(`{"state":%v}`, strconv.FormatBool(!state)) }
+		hx-trigger="click"
+		ws-send
+	>
+		if state {
+			on
+		} else {
+			off
+		}
+	</button>
+}

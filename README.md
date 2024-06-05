@@ -1,35 +1,20 @@
-# hx-sockets
+# hx-sockets-demo
 
-hx-sockets is a small layer around the gorilla websockets *currently making it easier to get up and running with htmx websockets.
-currently it is not ready for production use or anything outside of demoing because i'd like to make sure that the compatibility module system is the best that it can be.
+![image](https://github.com/DeaSTL/hx-sockets-demo/assets/19532324/4e50fcac-a63d-48f8-95d1-27d384cfcc9e)
 
-here is some demo code
-```go
-func main() {
-	mux := http.NewServeMux()
-	server := compat.NewNetHttp(mux).(compat.NethttpServer)
-	
-	server.Listen("some_message", func(ctx *compat.NethttpClient, msg *hx.Message) {
-	
-		ctx.SendStr(`<a id="some_message">some message</a>`)
-	})
 
-	server.Start("/ws") // where the web socket mounts
-  
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    	// send back index page
-	})
-  	http.ListenAndServe(":3000",mux)
-}
+https://github.com/DeaSTL/hx-sockets-demo/assets/19532324/23aa9d09-6722-4ca8-8285-4eafb91e0117
+
+
+
+
+# Run instructions
+```
+docker-compose up --build
+```
+newer versions of docker
+```
+docker compose up --build
 ```
 
-```html
-  // load in htmx and htmx-ws....
-  <body hx-ext="ws" ws-connect="/ws">
-    <div>
-      <button id="some_message" hx-trigger="click" ws-send></button>
-    </div>
-  </body>
-```
-
-[Demo](https://github.com/DeaSTL/hx-sockets-demo)
+go to `localhost:3000` in your browser

@@ -65,7 +65,7 @@ func (s *Server) GetClientFilter(filter func(*Client) bool) []*Client {
 
 // Close will close a client connection
 func (c *Client) Close() error {
-	return c.conn.Close()
+	return c.Conn.Close()
 }
 
 // Listen will associate a ListenerFunc with a websocket endpoint.
@@ -106,8 +106,8 @@ func (s *Server) Mount(endpoint string) {
 		}
 
 		newClient := Client{
-			conn: c,
-			ID:   GenB64(10),
+			Conn: c,
+			ID:   genB64(10),
 		}
 		s.clients[newClient.ID] = &newClient
 
@@ -125,7 +125,7 @@ func (s *Server) Mount(endpoint string) {
 
 			if err != nil {
 				s.OnClientDisconnect(&newClient)
-				newClient.conn.Close()
+				newClient.Conn.Close()
 				break
 			}
 
@@ -159,14 +159,16 @@ func (s *Server) Mount(endpoint string) {
 
 }
 
-// Client represents a connected client.
+// Client represents a connected client. The user is not responsible
+// for setting up connections and IDs, but they are exposed for convenience.
 type Client struct {
-	conn *websocket.Conn
+	Conn *websocket.Conn
 	ID   string
 }
 
+// WriteMessage wraps the underlying websocket WriteMessage() function for convenience.
 func (c *Client) WriteMessage(code int, msg []byte) error {
-	return c.conn.WriteMessage(code, msg)
+	return c.Conn.WriteMessage(code, msg)
 }
 
 func NewServer(app *fiber.App) Server {
@@ -179,7 +181,8 @@ func NewServer(app *fiber.App) Server {
 		mtex:               sync.Mutex{},
 	}
 }
-func GenB64(length int) string {
+
+func genB64(length int) string {
 	dembytes := make([]byte, length)
 	_, err := rand.Read(dembytes)
 	if err != nil {

@@ -1,3 +1,4 @@
+// hxsocketsfiber provides an easy interface for using htmx websockets with the Fiber web framework
 package hxsocketsfiber
 
 import (
@@ -13,7 +14,6 @@ import (
 )
 
 type ListenerFunc func(*Client, []byte)
-
 type ClientConnectFunc func(*Client)
 type ClientDisconnectFunc func(*Client)
 
@@ -71,6 +71,11 @@ func (c *Client) Close() error {
 // Listen will associate a ListenerFunc with a websocket endpoint.
 // This will not accomplish anything unless Mount(endpoint) is called
 // to mount the websocket paths to an endpoint
+// Example:
+//
+//	server.Listen("some-event",func(c *Client, msg []byte)
+//		log.Printf("msg: %v",msg)
+//	})
 func (s *Server) Listen(endpoint string, handler ListenerFunc) error {
 	s.mtex.Lock()
 	defer s.mtex.Unlock()
@@ -84,6 +89,10 @@ func (s *Server) Listen(endpoint string, handler ListenerFunc) error {
 	return nil
 }
 
+// Mount is the function called to attach the given endpoint to your app
+// Example:
+//
+//	server.Mount("/ws")
 func (s *Server) Mount(endpoint string) {
 	s.app.Use(endpoint, func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
@@ -129,7 +138,7 @@ func (s *Server) Mount(endpoint string) {
 				break
 			}
 
-			hd := HXWSHeaders{}
+			hd := hXWSHeanersWrapper{}
 
 			err = json.Unmarshal(msg, &hd)
 			if err != nil {
@@ -167,8 +176,13 @@ type Client struct {
 }
 
 // WriteMessage wraps the underlying websocket WriteMessage() function for convenience.
-func (c *Client) WriteMessage(code int, msg []byte) error {
-	return c.Conn.WriteMessage(code, msg)
+// Example:
+//
+//	<div id="event-name">some text</div>
+//
+// This will receive this message and handle it based on the state of hx-swap
+func (c *Client) WriteMessage(msg []byte) error {
+	return c.Conn.WriteMessage(1, msg)
 }
 
 func NewServer(app *fiber.App) Server {
@@ -192,12 +206,16 @@ func genB64(length int) string {
 	return encoded
 }
 
-type HXWSHeaders struct {
-	Headers struct {
-		HXRequest     string  `json:"HX-Request"`
-		HXTrigger     string  `json:"HX-Trigger"`
-		HXTriggerName *string `json:"HX-Trigger-Name"`
-		HXTarget      string  `json:"HX-Target"`
-		HXCurrentURL  string  `json:"HX-Current-URL"`
-	} `json:"HEADERS"`
+// HXHeaders is part of the [HXWSHeadersWrapper]
+// This can be used in conjuction with yor message struct (under the json key of "HEADERS") if these attributes are needed
+type HXHeaders struct {
+	HXRequest     string  `json:"HX-Request"`
+	HXTrigger     string  `json:"HX-Trigger"`
+	HXTriggerName *string `json:"HX-Trigger-Name"`
+	HXTarget      string  `json:"HX-Target"`
+	HXCurrentURL  string  `json:"HX-Current-URL"`
+}
+
+type hXWSHeanersWrapper struct {
+	Headers HXHeaders `json:"HEADERS"`
 }

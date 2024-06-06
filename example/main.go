@@ -34,7 +34,7 @@ func main() {
 		t.Execute(buf, !message.On)
 		fmt.Println()
 		os.Stdout.Write(buf.Bytes())
-		err = client.WriteMessage(1, buf.Bytes())
+		err = client.WriteMessage(buf.Bytes())
 		if err != nil {
 			fmt.Println(err.Error())
 		}

@@ -1,5 +1,5 @@
 // hxsocketsfiber provides an easy interface for using htmx websockets with the Fiber web framework
-package hxsocketsfiber
+package hx
 
 import (
 	"crypto/rand"

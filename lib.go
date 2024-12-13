@@ -127,8 +127,6 @@ func (s *Server) Mount(endpoint string) {
 			return nil
 		})
 
-		log.Printf("client connected %+v", newClient)
-
 		for {
 			_, msg, err := c.ReadMessage()
 
@@ -145,7 +143,6 @@ func (s *Server) Mount(endpoint string) {
 				log.Printf("Failed to unmarshal json %+v", err)
 				return
 			}
-			log.Printf(string(msg))
 			if len(hd.Headers.HXTrigger) == 0 {
 				log.Printf("Trigger was blank %+v", hd)
 				return
